@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Depósitos - VENDE Y GANA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        .app {
+            margin: 20px;
+        }
+        h1 {
+            color: #ed7318; /* Color naranja */
+        }
+        h2, h3 {
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .total {
+            font-weight: bold;
+        }
+        .favorite {
+            color: red;
+        }
+        .favorite-buttons {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column; /* Para disposición en columna */
+        }
+        .favorite-button {
+            background-color: #ffcc00;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            margin-bottom: 5px; /* Para separación vertical */
+            display: block; /* Para que los botones se dispongan en columnas */
+            width: 100%; /* Para que ocupen el 100% del contenedor */
+        }
+        .remove-favorite {
+            background-color: #ff0000;
+            border: none;
+            color: white;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        .export-buttons {
+            margin-top: 20px;
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .modal-content {
+            background-color: #ed7318;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            color: white;
+            text-align: center;
+        }
+        .close {
+            color: white;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: #000;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .app {
+                margin: 10px;
+            }
+            .favorite-buttons {
+                position: static;
+                margin-bottom: 20px;
+                display: flex;
+                flex-direction: column; /* Para disposición en columna */
+                justify-content: center;
+            }
+            .favorite-button {
+                padding: 8px;
+                margin-bottom: 5px; /* Para separación vertical */
+                display: block; /* Para que los botones se dispongan en columnas */
+                width: 100%; /* Para que ocupen el 100% del contenedor */
+            }
+            table, th, td {
+                font-size: 14px;
+            }
+            .export-buttons {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            .export-buttons button {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <h1>Control de Depósitos - VENDE Y GANA</h1>
+        <div class="favorite-buttons" id="favoriteButtons"></div>
+        <form id="depositForm">
+            <label for="bank">Banco:</label>
+            <select id="bank" required>
+                <option value="">Seleccione un banco</option>
+                <!-- Los bancos se cargarán dinámicamente -->
+            </select>
+            <button type="button" id="markFavorite">Marcar como Favorito</button>
+            <br><br>
+            <label for="amount">Monto (Bs):</label>
+            <input type="number" id="amount" step="0.01" required>
+            <br><br>
+            <label for="reference">Número de Referencia:</label>
+            <input type="text" id="reference" required>
+            <br><br>
+            <label for="operationType">Tipo de Operación:</label>
+            <select id="operationType" required>
+                <option value="Transferencia">Transferencia</option>
+                <option value="Pago Móvil">Pago Móvil</option>
+            </select>
+            <br><br>
+            <button type="submit">Agregar Depósito</button>
+        </form>
+        
+        <button type="button" id="showFavorites">Pagos Frecuentes</button>
+        <div id="favoritesList" style="display: none;">
+            <h2>Pagos Frecuentes</h2>
+            <ul id="favorites"></ul>
+        </div>
+
+        <h2>Depósitos</h2>
+        <!-- Filtro de bancos -->
+        <label for="filterBank">Filtrar por Banco:</label>
+        <select id="filterBank">
+            <option value="">Todos los bancos</option>
+            <!-- Los bancos se cargarán dinámicamente -->
+        </select>
+        <button type="button" id="filterButton">Filtrar</button>
+        <button type="button" id="clearFilterButton">Eliminar Filtro</button> <!-- Botón para eliminar el filtro -->
+
+        <div id="totals"></div>
+        <table id="depositTable">
+            <thead>
+                <tr>
+                    <th>Banco</th>
+                    <th>Monto (Bs)</th>
+                    <th>Número de Referencia</th>
+                    <th>Tipo de Operación</th>
+                    <th>Fecha y Hora</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+
+        <div class="export-buttons">
+            <button id="exportCSV">Exportar a CSV</button>
+            <button id="exportXLSX">Exportar a XLSX</button>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="bankModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <p>Importante: Aquí puedes marcar como favorito tu banco para que en las próximas oportunidades le des al botón sin necesidad de desplegar esta lista.</p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <script>
+        const depositForm = document.getElementById('depositForm');
+        const depositTable = document.getElementById('depositTable').querySelector('tbody');
+        const totalsDiv = document.getElementById('totals');
+        const bankSelect = document.getElementById('bank');
+        const filterBankSelect = document.getElementById('filterBank');
+        const favoritesList = document.getElementById('favorites');
+        const favoritesDiv = document.getElementById('favoritesList');
+        const showFavoritesButton = document.getElementById('showFavorites');
+        const markFavoriteButton = document.getElementById('markFavorite');
+        const favoriteButtonsDiv = document.getElementById('favoriteButtons');
+        const filterButton = document.getElementById('filterButton');
+        const clearFilterButton = document.getElementById('clearFilterButton'); // Botón para eliminar el filtro
+        const exportCSVButton = document.getElementById('exportCSV');
+        const exportXLSXButton = document.getElementById('exportXLSX');
+        const bankModal = document.getElementById('bankModal');
+        const closeModal = document.getElementsByClassName('close')[0];
+
+        let deposits = JSON.parse(localStorage.getItem('deposits')) || [];
+        let favoriteBanks = JSON.parse(localStorage.getItem('favoriteBanks')) || [];
+
+        const banks = [
+            { name: "Banco de Occidente", code: "1023" },
+            { name: "Banco Falabella S.A.", code: "1062" },
+            { name: "Banco Finandina S.A.", code: "1063" },
+            { name: "Banco GNB Sudameris", code: "1012" },
+            { name: "Banesco", code: "0134" },
+            { name: "Banco Sofitasa", code: "0137" },
+            { name: "Banco Plaza", code: "0138" },
+            { name: "Bangente C.A", code: "0146" },
+            { name: "Banco Central de Venezuela", code: "0001" },
+            { name: "Banco de Venezuela, S.A. Banco Universal", code: "0102" },
+            { name: "Banco Venezolano de Crédito, S.A. Banco Universal", code: "0104" },
+            { name: "Banco Mercantil C.A., Banco Universal", code: "0105" },
+            { name: "Banco Provincial, S.A. Banco Universal", code: "0108" },
+            { name: "Banco del Caribe C.A., Banco Universal", code: "0114" },
+            { name: "Banco Exterior C.A., Banco Universal", code: "0115" },
+            { name: "Banco Caroní C.A., Banco Universal", code: "0128" }
+        ];
+
+        function populateBankSelect() {
+            bankSelect.innerHTML = '<option value="">Seleccione un banco</option>';
+            filterBankSelect.innerHTML = '<option value="">Todos los bancos</option>';
+            favoriteBanks.forEach(bank => {
+                const option = document.createElement('option');
+                option.value = bank.name;
+                option.text = bank.name;
+                option.classList.add('favorite');
+                bankSelect.appendChild(option);
+                filterBankSelect.appendChild(option.cloneNode(true));
+            });
+            banks.forEach(bank => {
+                if (!favoriteBanks.find(favBank => favBank.name === bank.name)) {
+                    const option = document.createElement('option');
+                    option.value = bank.name;
+                    option.text = bank.name;
+                    bankSelect.appendChild(option);
+                    filterBankSelect.appendChild(option.cloneNode(true));
+                }
+            });
+        }
+
+        function addFavoriteBank() {
+            const selectedBank = bankSelect.value;
+            if (selectedBank && !favoriteBanks.find(bank => bank.name === selectedBank) && favoriteBanks.length < 4) {
+                const bank = banks.find(bank => bank.name === selectedBank);
+                favoriteBanks.push(bank);
+                saveFavoriteBanks();
+                updateFavoriteButtons();
+                populateBankSelect();
+                updateFavoritesList();
+            }
+        }
+
+        function removeFavoriteBank(bankName) {
+            favoriteBanks = favoriteBanks.filter(bank => bank.name !== bankName);
+            saveFavoriteBanks();
+            updateFavoriteButtons();
+            populateBankSelect();
+            updateFavoritesList();
+        }
+
+        function updateFavoriteButtons() {
+            favoriteButtonsDiv.innerHTML = '';
+            favoriteBanks.forEach(bank => {
+                const buttonContainer = document.createElement('div');
+                buttonContainer.style.display = 'flex';
+                buttonContainer.style.alignItems = 'center';
+
+                const button = document.createElement('button');
+                button.classList.add('favorite-button');
+                button.innerText = bank.name;
+                button.addEventListener('click', () => {
+                    bankSelect.value = bank.name;
+                });
+
+                const removeButton = document.createElement('button');
+                removeButton.classList.add('remove-favorite');
+                removeButton.innerText = 'Eliminar';
+                removeButton.addEventListener('click', () => {
+                    removeFavoriteBank(bank.name);
+                });
+
+                buttonContainer.appendChild(button);
+                buttonContainer.appendChild(removeButton);
+                favoriteButtonsDiv.appendChild(buttonContainer);
+            });
+        }
+
+        function updateFavoritesList() {
+            favoritesList.innerHTML = '';
+            favoriteBanks.forEach(bank => {
+                const li = document.createElement('li');
+                li.innerText = bank.name;
+                favoritesList.appendChild(li);
+            });
+        }
+
+        function saveFavoriteBanks() {
+            localStorage.setItem('favoriteBanks', JSON.stringify(favoriteBanks));
+        }
+
+        function saveDeposits() {
+            localStorage.setItem('deposits', JSON.stringify(deposits));
+        }
+
+        function addDepositToTable(deposit) {
+            const row = depositTable.insertRow();
+            row.insertCell(0).innerText = deposit.bank;
+            row.insertCell(1).innerText = deposit.amount.toFixed(2);
+            row.insertCell(2).innerText = deposit.reference;
+            row.insertCell(3).innerText = deposit.operationType;
+            row.insertCell(4).innerText = deposit.dateTime;
+        }
+
+        function updateTotals() {
+            const totals = deposits.reduce((acc, deposit) => {
+                const date = deposit.dateTime.split(',')[0];
+                if (!acc[date]) {
+                    acc[date] = 0;
+                }
+                acc[date] += deposit.amount;
+                return acc;
+            }, {});
+
+            totalsDiv.innerHTML = '<h3>Totales por Día</h3>';
+            for (const [date, total] of Object.entries(totals)) {
+                totalsDiv.innerHTML += `<p>${date}: ${total.toFixed(2)} Bs</p>`;
+            }
+        }
+
+        function filterDeposits() {
+            const filterBank = filterBankSelect.value;
+            depositTable.innerHTML = '';
+            deposits.forEach(deposit => {
+                if (filterBank === '' || deposit.bank === filterBank) {
+                    addDepositToTable(deposit);
+                }
+            });
+        }
+
+        function clearFilter() {
+            filterBankSelect.value = "";
+            filterDeposits();
+        }
+
+        depositForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const bank = bankSelect.value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const reference = document.getElementById('reference').value;
+            const operationType = document.getElementById('operationType').value;
+            const dateTime = new Date().toLocaleString();
+
+            const deposit = { bank, amount, reference, operationType, dateTime };
+            deposits.push(deposit);
+            saveDeposits();
+            addDepositToTable(deposit);
+            updateTotals();
+            depositForm.reset();
+        });
+
+        markFavoriteButton.addEventListener('click', addFavoriteBank);
+
+        showFavoritesButton.addEventListener('click', function() {
+            favoritesDiv.style.display = favoritesDiv.style.display === 'none' ? 'block' : 'none';
+        });
+
+        filterButton.addEventListener('click', filterDeposits);
+        clearFilterButton.addEventListener('click', clearFilter); // Evento para el botón de eliminar filtro
+
+        exportCSVButton.addEventListener('click', function() {
+            const csvContent = "data:text/csv;charset=utf-8," 
+                + ["Banco,Monto (Bs),Número de Referencia,Tipo de Operación,Fecha y Hora"]
+                .concat(deposits.map(d => `${d.bank},${d.amount},${d.reference},${d.operationType},${d.dateTime}`))
+                .join("\n");
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "deposits.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        exportXLSXButton.addEventListener('click', function() {
+            const ws_data = [
+                ["Banco", "Monto (Bs)", "Número de Referencia", "Tipo de Operación", "Fecha y Hora"],
+                ...deposits.map(d => [d.bank, d.amount, d.reference, d.operationType, d.dateTime])
+            ];
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            XLSX.utils.book_append_sheet(wb, ws, "Deposits");
+            XLSX.writeFile(wb, "deposits.xlsx");
+        });
+
+        bankSelect.addEventListener('focus', function() {
+            bankModal.style.display = 'block';
+        });
+
+        closeModal.addEventListener('click', function() {
+            bankModal.style.display = 'none';
+        });
+
+        window.addEventListener('click', function(event) {
+            if (event.target == bankModal) {
+                bankModal.style.display = 'none';
+            }
+        });
+
+        // Initial population of the bank select dropdown
+        populateBankSelect();
+
+        // Load saved deposits and favorite banks
+        deposits.forEach(addDepositToTable);
+        updateTotals();
+        updateFavoriteButtons();
+    </script>
+</body>
+</html>
